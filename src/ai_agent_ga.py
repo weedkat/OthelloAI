@@ -7,12 +7,13 @@ from othello_game import OthelloGame
 from ai_agent import MinimaxOthelloAI
 
 # GA parameters
-POPULATION_SIZE = 15
-MUTATION_RATE = 0.1
-CROSSOVER_RATE = 0.7
+POPULATION_SIZE = 16
+MUTATION_RATE = 0.05
+CROSSOVER_RATE = 0.6
 GENERATIONS = 5
 TOURNAMENT_SIZE = 4
 GAMES_PER_INDIVIDUAL = 4
+ELITE_PERCENTAGE = 0.10
 
 def save_weights_to_json(weights, filename = "ga_weights.json"):
     """Saves the genetic algorithm weights to a JSON file."""
@@ -70,32 +71,35 @@ class GeneticOthelloAI:
     def calculate_fitness(self, individual):
         """Calculates the fitness by playing games with a heuristic-based opponent."""
         fitness = 0
-        n_simulation = 1 if self.opponent == 'minimax' else GAMES_PER_INDIVIDUAL
-        for _ in range(n_simulation):
-            game = OthelloGame(player_mode="ai")
-            while not game.is_game_over():
-                if game.current_player == 1:
-                    move = self.get_best_move(game, individual)
-                else:
-                    move = self.get_simple_move(game, move_type = self.opponent) if game.get_valid_moves() else None
-                if move:
-                    game.make_move(*move)
-            winner = game.get_winner()
-            score_diff = sum(row.count(1) for row in game.board) - sum(row.count(-1) for row in game.board)
-            fitness += (2 if winner == 1 else (0 if winner == 0 else -1)) + 0.1 * score_diff
-        return fitness / n_simulation
+        game = OthelloGame(player_mode="ai")
+        move_count = 0
+        while not game.is_game_over():
+            if game.current_player == 1:
+                move = self.get_best_move(game, individual)
+            else:
+                move = self.get_simple_move(game, move_type = self.opponent) if game.get_valid_moves() else None
+            if move:
+                move_count += 1
+                game.make_move(*move)
+        winner = game.get_winner()
+        score_diff = sum(row.count(1) for row in game.board) - sum(row.count(-1) for row in game.board)
+        fitness += (2 if winner == 1 else (0 if winner == 0 else -1)) + 0.1 * score_diff - 0.01 * move_count
+        return fitness
 
     def genetic_algorithm(self):
         weights = load_weights_from_json()
         if self.train or not weights.get(self.opponent):
             """Evolves weights using the genetic algorithm."""
             population = [self.create_individual() for _ in range(POPULATION_SIZE)]
+            elite_count = max(1, int(POPULATION_SIZE * ELITE_PERCENTAGE))
             for generation in range(GENERATIONS):
                 fitnesses = [self.calculate_fitness(p) for p in population]
-                new_population = []
+                elite_individuals = sorted(zip(population, fitnesses), key=lambda x: x[1], reverse=True)[:elite_count]
+                new_population = [ind[0] for ind in elite_individuals]
+
                 while len(new_population) < POPULATION_SIZE:
-                    parent1 = self.tournament_selection(population, fitnesses)
-                    parent2 = self.tournament_selection(population, fitnesses)
+                    parent1 = self.roulette_wheel_selection(population, fitnesses)
+                    parent2 = self.roulette_wheel_selection(population, fitnesses)
                     child = self.crossover(parent1, parent2)
                     self.mutate(child)
                     new_population.append(child)
@@ -146,10 +150,11 @@ class GeneticOthelloAI:
         elif 'minimax':
             return self.minimax_move(game)
 
-    def tournament_selection(self, population, fitnesses):
-        """Select an individual using tournament selection."""
-        tournament = random.sample(list(zip(population, fitnesses)), TOURNAMENT_SIZE)
-        return max(tournament, key=lambda x: x[1])[0]
+    def roulette_wheel_selection(self, population, fitnesses):
+        """Select an individual using roulette wheel selection."""
+        total_fitness = sum(fitnesses)
+        selection_probs = [f / total_fitness for f in fitnesses]
+        return random.choices(population, weights=selection_probs, k=1)[0]
 
     def crossover(self, parent1, parent2):
         """Create offspring by crossover of two parents."""

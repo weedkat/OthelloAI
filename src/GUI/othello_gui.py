@@ -5,6 +5,7 @@ import os
 from othello_game import OthelloGame
 from ai_agent_ga import GeneticOthelloAI
 from ai_agent import MinimaxOthelloAI
+from ai_agent_ga_adaptive import GeneticAdaptiveOthelloAI
 
 # Constants and colors
 WIDTH, HEIGHT = 480, 560
@@ -64,6 +65,8 @@ class OthelloGUI:
             return GeneticOthelloAI()
         elif agent_type == "Minimax":
             return MinimaxOthelloAI()
+        elif agent_type == "Genetic Algorithm Adaptive":
+            return GeneticAdaptiveOthelloAI()
         else:
             return None  # This means it's a human player
 
@@ -139,6 +142,7 @@ class OthelloGUI:
         """
         Handle user input events such as mouse clicks and game quitting.
         """
+        row, col = (0, 0)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -208,7 +212,7 @@ class OthelloGUI:
                 player = self.agent_type_a
             
             elif self.game.player_mode == "ai" and self.game.current_player == 1:
-                move = self.handle_input()
+                self.handle_input()
             
             # If it's the AI player's turn
             elif self.game.player_mode == "agent" and self.game.current_player == 1:

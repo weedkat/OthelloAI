@@ -1,10 +1,10 @@
 {
     "heuristic": {
-        "coin_parity": 2.3942046855106827,
-        "mobility": 5.390344110917793,
-        "corner_occupancy": -1.5352437505489367,
-        "stability": -6.403817367834915,
-        "edge_occupancy": -5.977617226544675
+        "coin_parity": -5.578476662873058,
+        "mobility": -1.7955884636380826,
+        "corner_occupancy": -3.792035698286929,
+        "stability": -7.116638117067713,
+        "edge_occupancy": 8.076916685646342
     },
     "random": {
         "coin_parity": -6.395269024419564,
