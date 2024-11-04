@@ -5,7 +5,6 @@ import os
 from othello_game import OthelloGame
 from ai_agent_ga import GeneticOthelloAI
 from ai_agent import MinimaxOthelloAI
-from ai_agent_ga_adaptive import GeneticAdaptiveOthelloAI
 
 # Constants and colors
 WIDTH, HEIGHT = 480, 560
@@ -65,8 +64,6 @@ class OthelloGUI:
             return GeneticOthelloAI()
         elif agent_type == "Minimax":
             return MinimaxOthelloAI()
-        elif agent_type == "Genetic Algorithm Adaptive":
-            return GeneticAdaptiveOthelloAI()
         else:
             return None  # This means it's a human player
 

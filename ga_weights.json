@@ -1,23 +1,7 @@
 {
-    "heuristic": {
-        "coin_parity": -5.578476662873058,
-        "mobility": -1.7955884636380826,
-        "corner_occupancy": -3.792035698286929,
-        "stability": -7.116638117067713,
-        "edge_occupancy": 8.076916685646342
-    },
-    "random": {
-        "coin_parity": -6.395269024419564,
-        "mobility": -1.6320996252960656,
-        "corner_occupancy": 1.417811316253149,
-        "stability": -1.4211086041318515,
-        "edge_occupancy": -4.276868488263059
-    },
-    "minimax": {
-        "coin_parity": -4.393703825485728,
-        "mobility": -1.2670419886693005,
-        "corner_occupancy": -2.3000795049860967,
-        "stability": -5.524350850375641,
-        "edge_occupancy": 3.734664034675049
-    }
+  "coin_parity": -2.911163426060188,
+  "mobility": -0.40620412673829387,
+  "corner_occupancy": 0.08392705933495903,
+  "stability": 3.5758067650896086,
+  "edge_occupancy": 2.638779107121257
 }

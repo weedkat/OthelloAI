@@ -59,7 +59,6 @@ class MinimaxOthelloAI:
 
             for move in valid_moves:
                 if time.time() - start_time > max_time:
-                    print("Timeout reached. Returning the best move found so far.")
                     break
                 
                 new_game = OthelloGame(player_mode=game.player_mode)
@@ -84,7 +83,6 @@ class MinimaxOthelloAI:
 
             for move in valid_moves:
                 if time.time() - start_time > max_time:
-                    print("Timeout reached. Returning the best move found so far.")
                     break
 
                 new_game = OthelloGame(player_mode=game.player_mode)

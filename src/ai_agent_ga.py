@@ -1,0 +1,234 @@
+import random
+import time
+import json
+import os
+from othello_game import OthelloGame
+from ai_agent import MinimaxOthelloAI
+
+# Genetic Algorithm Parameters
+N_POPULATION = 8
+MUTATION_RATE = 0.1
+MUTATION_SWING = 1
+N_GENERATIONS = 5
+ELITE_PERCENTAGE = 0.1
+MAX_WEIGHT = 5
+MIN_WEIGHT = -5
+
+def save_weights_to_json(weights, filename = 'ga_weights.json'):
+    with open(filename, 'w') as file:
+        json.dump(weights, file, indent = 2)
+
+def load_weights_from_json(filename = 'ga_weights.json'):
+    if not os.path.exists(filename):
+        save_weights_to_json({})
+    with open(filename, 'r') as file:
+        weights = json.load(file)
+    return weights
+
+class GeneticOthelloAI:
+    def __init__(self, opponent = 'minimax', train = True):
+        self.opponent = opponent
+        self.train = train
+        weights = load_weights_from_json()
+        weights = weights.get(opponent)
+        if not train and weights:
+            self.best_weights = weights            
+        else:
+            self.best_weights = self.genetic_algorithm()
+            save_weights_to_json(self.best_weights)
+    
+    def create_individual(self):
+        # Individu direpresentasikan dengan dictionary evaluasi weight
+        features = ["coin_parity", "mobility", "corner_occupancy", "stability", "edge_occupancy"]
+        return {feature : random.uniform(MAX_WEIGHT, MIN_WEIGHT) for feature in features}
+    
+    def evaluate_game_state(self, game, weights):
+        # Coin parity (difference in disk count)
+        player_disk_count = sum(row.count(game.current_player) for row in game.board)
+        opponent_disk_count = sum(row.count(-game.current_player) for row in game.board)
+        coin_parity = player_disk_count - opponent_disk_count
+
+        # Mobility (number of valid moves for the current player)
+        player_valid_moves = len(game.get_valid_moves())
+        opponent_valid_moves = len(
+            OthelloGame(player_mode=-game.current_player).get_valid_moves()
+        )
+        mobility = player_valid_moves - opponent_valid_moves
+
+        # Corner occupancy (number of player disks in the corners)
+        corner_occupancy = sum(
+            game.board[i][j] for i, j in [(0, 0), (0, 7), (7, 0), (7, 7)]
+        )
+
+        # Stability (number of stable disks)
+        stability = self.calculate_stability(game)
+
+        # Edge occupancy (number of player disks on the edges)
+        edge_occupancy = sum(game.board[i][j] for i in [0, 7] for j in range(1, 7)) + sum(
+            game.board[i][j] for i in range(1, 7) for j in [0, 7]
+        )
+
+        evaluation = (
+            coin_parity * weights['coin_parity']
+            + mobility * weights['mobility']
+            + corner_occupancy * weights['corner_occupancy']
+            + stability * weights['stability']
+            + edge_occupancy * weights['edge_occupancy']
+        )
+        return evaluation
+    
+    def calculate_stability(self, game):
+        def neighbors(row, col):
+            return [
+                (row + dr, col + dc)
+                for dr in [-1, 0, 1]
+                for dc in [-1, 0, 1]
+                if (dr, dc) != (0, 0) and 0 <= row + dr < 8 and 0 <= col + dc < 8
+            ]
+        
+        def is_stable_disk(row, col):
+            return (
+                all(game.board[r][c] == game.current_player for r, c in neighbors(row, col))
+                or (row, col) in edges + corners
+            )
+        
+        corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
+        edges = [(i, j) for i in [0, 7] for j in range(1, 7)] + [
+            (i, j) for i in range(1, 7) for j in [0, 7]
+        ]
+        inner_region = [(i, j) for i in range(2, 6) for j in range(2, 6)]
+        regions = [corners, edges, inner_region]
+
+        stable_count = 0
+
+        for region in regions:
+            for row, col in region:
+                if game.board[row][col] == game.current_player and is_stable_disk(row, col):
+                    stable_count += 1
+        return stable_count
+    
+    def calculate_fiteness(self, individual):
+        fitness = 0
+        game = OthelloGame(player_mode = 'ai')
+        move_count = 0
+        # Simulate games with opponent
+        while not game.is_game_over():
+            if game.current_player == 1:
+                move = self.get_best_move(game, individual)
+            else:
+                move = self.get_opponent_move(game, self.opponent)
+            if move:
+                move_count += 1
+                game.make_move(*move)
+        winner = game.get_winner()
+        # score difference
+        score_diff = sum(row.count(1) for row in game.board)
+        score_diff -= sum(row.count(-1) for row in game.board)
+        fitness = (2 if winner == 1 else (0 if winner == 0 else -1)) \
+                    + 0.1 * score_diff \
+                    - 0.01 * move_count
+        return fitness
+    
+    def get_opponent_move(self, game, opponent):
+        if opponent == 'heuristic':
+            return self.heuristic_move(game)
+        elif opponent == 'random':
+            return self.random_move(game)
+        elif opponent == 'minimax':
+            return self.minimax_move(game)
+        else:
+            raise Exception('Opponent ia not listed')
+        
+    def heuristic_move(self, game):
+        heuristic_matrix = [ #https://github.com/mdulin2/Othello/blob/master/Heuristic.py
+            [95, 10, 80, 75, 75, 80, 10, 95],
+            [10, 10, 45, 45, 45, 45, 10, 10],
+            [65, 40, 70, 50, 50, 70, 40, 65],
+            [60, 40, 40, 40, 40, 40, 40, 60],
+            [60, 40, 40, 40, 40, 40, 40, 60],
+            [65, 40, 70, 50, 50, 70, 40, 65],
+            [10, 10, 45, 45, 45, 45, 10, 10],
+            [95, 10, 65, 60, 60, 65, 10, 95]
+        ]
+        max_value = float('-inf')
+        best_move = None
+        for move in game.get_valid_moves():
+            row, col = move
+            heuristic_value = heuristic_matrix[row][col]
+            if heuristic_value > max_value:
+                best_move = move
+                max_value = heuristic_value
+        return best_move
+
+    def random_move(self, game):
+        return random.choice(game.get_valid_moves())
+    
+    def minimax_move(self, game, max_depth = 8):
+        minimax_agent = MinimaxOthelloAI(max_depth)
+        return minimax_agent.get_best_move(game)
+
+    def roulette_wheel(self, population, fitnesses):
+        # Pick one individual with weighted probability
+        total_fitness = sum(fitnesses)
+        selection_probs = [f / total_fitness for f in fitnesses]
+        return random.choices(population, weights=selection_probs, k=1)[0]
+
+    def crossover(self, parent_a, parent_b):
+        # get random genetics from parents
+        child = {}
+        for feature in parent_a:
+            rand = random.random()
+            child[feature] = parent_a[feature] * rand + parent_b[feature] * (1-rand)
+        return child
+
+    def mutate(self, individual):
+        # mutate weight between -1 and 1
+        for feature in individual:
+            if random.random() < MUTATION_RATE:
+                individual[feature] += random.uniform(-MUTATION_SWING, MUTATION_SWING)
+                individual[feature] = max(MIN_WEIGHT, min(MAX_WEIGHT, individual[feature]))
+    
+    def genetic_algorithm(self):
+        population = [self.create_individual() for _ in range(N_POPULATION)]
+        elite_count = max(1, int(N_POPULATION * ELITE_PERCENTAGE))
+        for gen in range(N_GENERATIONS):
+            # elitism
+            new_population = self.get_best_individual(population, n = elite_count)
+            fitnesses = [self.calculate_fiteness(p) for p in population]
+
+            while len(new_population) < N_POPULATION:
+                parent_a = self.roulette_wheel(population, fitnesses)
+                parent_b = self.roulette_wheel(population, fitnesses)
+                child = self.crossover(parent_a, parent_b)
+                self.mutate(child)
+                new_population.append(child)
+            print(f"Generation {gen + 1} completed with max fitness of {max(fitnesses)}")
+            population = new_population
+        return self.get_best_individual(population)[0]
+    
+    def get_best_individual(self, population, n = 1):
+        # return n best individual or best weight if n = 1
+        fitnesses = [self.calculate_fiteness(p) for p in population]
+        elites = sorted(zip(population, fitnesses), key=lambda x: x[1], reverse=True)[:n]
+        return [elite[0] for elite in elites]
+    
+    def get_best_move(self, game, weights = None):
+        valid_moves = game.get_valid_moves()
+
+        best_move = None
+        best_eval = float('-inf')
+        
+        for move in valid_moves:
+            # simulate game
+            new_game = OthelloGame(player_mode=game.player_mode)
+            new_game.board = [row[:] for row in game.board]
+            new_game.current_player = game.current_player
+            new_game.make_move(*move)
+
+            move_eval = self.evaluate_game_state(new_game, weights or self.best_weights)
+
+            if move_eval > best_eval:
+                best_eval = move_eval
+                best_move = move
+
+        return best_move
