@@ -13,7 +13,7 @@ MAX_TIME = 5 #* 5 Second
 
 class SimulatedAnnealingOthelloAI:
     def __init__(self, opponent='heuristic', max_time=5, train=True):
-        print("Initializing SimulatedAnnealingOthelloAI...")
+        #print("Initializing SimulatedAnnealingOthelloAI...")
         self.opponent = opponent
         self.max_time = max_time
         self.train = train

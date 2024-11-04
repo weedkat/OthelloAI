@@ -2,17 +2,19 @@ import random
 import time
 import json
 import os
+from multiprocessing import Pool
 from othello_game import OthelloGame
 from ai_agent import MinimaxOthelloAI
+from ai_agent_SA import SimulatedAnnealingOthelloAI
 
 # Genetic Algorithm Parameters
-N_POPULATION = 8
+N_POPULATION = 16
 MUTATION_RATE = 0.1
 MUTATION_SWING = 1
-N_GENERATIONS = 5
-ELITE_PERCENTAGE = 0.1
-MAX_WEIGHT = 5
-MIN_WEIGHT = -5
+N_GENERATIONS = 6
+ELITE_PERCENTAGE = 0.2
+MAX_WEIGHT = 8
+MIN_WEIGHT = -8
 
 def save_weights_to_json(weights, filename = 'ga_weights.json'):
     with open(filename, 'w') as file:
@@ -26,16 +28,16 @@ def load_weights_from_json(filename = 'ga_weights.json'):
     return weights
 
 class GeneticOthelloAI:
-    def __init__(self, opponent = 'minimax', train = True):
+    def __init__(self, opponent = 'simulated_annealing', train = False):
         self.opponent = opponent
         self.train = train
         weights = load_weights_from_json()
-        weights = weights.get(opponent)
-        if not train and weights:
-            self.best_weights = weights            
-        else:
-            self.best_weights = self.genetic_algorithm()
-            save_weights_to_json(self.best_weights)
+        if not weights.get(opponent) or train:       
+            weights[opponent] =  self.genetic_algorithm()
+            self.best_weights = weights[opponent]
+            save_weights_to_json(weights)
+        else :
+            self.best_weights = weights.get(opponent)
     
     def create_individual(self):
         # Individu direpresentasikan dengan dictionary evaluasi weight
@@ -107,7 +109,7 @@ class GeneticOthelloAI:
                     stable_count += 1
         return stable_count
     
-    def calculate_fiteness(self, individual):
+    def calculate_fitness(self, individual):
         fitness = 0
         game = OthelloGame(player_mode = 'ai')
         move_count = 0
@@ -124,10 +126,15 @@ class GeneticOthelloAI:
         # score difference
         score_diff = sum(row.count(1) for row in game.board)
         score_diff -= sum(row.count(-1) for row in game.board)
-        fitness = (2 if winner == 1 else (0 if winner == 0 else -1)) \
-                    + 0.1 * score_diff \
-                    - 0.01 * move_count
+        fitness = (4 if winner == 1 else (0 if winner == 0 else -1)) \
+                    + 0.05 * score_diff \
+                    - 0.005 * move_count
         return fitness
+    
+    def calculate_fitnesses(self, population):
+        with Pool() as pool:
+            fitnesses = pool.map(self.calculate_fitness, population)
+        return fitnesses
     
     def get_opponent_move(self, game, opponent):
         if opponent == 'heuristic':
@@ -136,6 +143,8 @@ class GeneticOthelloAI:
             return self.random_move(game)
         elif opponent == 'minimax':
             return self.minimax_move(game)
+        elif opponent == 'simulated_annealing':
+            return self.simulated_annealing_move(game)
         else:
             raise Exception('Opponent ia not listed')
         
@@ -163,9 +172,15 @@ class GeneticOthelloAI:
     def random_move(self, game):
         return random.choice(game.get_valid_moves())
     
-    def minimax_move(self, game, max_depth = 8):
+    def minimax_move(self, game, max_depth = 2):
         minimax_agent = MinimaxOthelloAI(max_depth)
         return minimax_agent.get_best_move(game)
+    
+    def simulated_annealing_move(self, game):
+        sa_agent = SimulatedAnnealingOthelloAI()
+        best_move = sa_agent.get_best_move(game)
+        print(best_move)
+        return best_move
 
     def roulette_wheel(self, population, fitnesses):
         # Pick one individual with weighted probability
@@ -193,8 +208,9 @@ class GeneticOthelloAI:
         elite_count = max(1, int(N_POPULATION * ELITE_PERCENTAGE))
         for gen in range(N_GENERATIONS):
             # elitism
-            new_population = self.get_best_individual(population, n = elite_count)
-            fitnesses = [self.calculate_fiteness(p) for p in population]
+            fitnesses = self.calculate_fitnesses(population)
+            elites = sorted(zip(population, fitnesses), key=lambda x: x[1], reverse=True)[:elite_count]
+            new_population = [elite[0] for elite in elites]
 
             while len(new_population) < N_POPULATION:
                 parent_a = self.roulette_wheel(population, fitnesses)
@@ -204,13 +220,9 @@ class GeneticOthelloAI:
                 new_population.append(child)
             print(f"Generation {gen + 1} completed with max fitness of {max(fitnesses)}")
             population = new_population
-        return self.get_best_individual(population)[0]
-    
-    def get_best_individual(self, population, n = 1):
-        # return n best individual or best weight if n = 1
-        fitnesses = [self.calculate_fiteness(p) for p in population]
-        elites = sorted(zip(population, fitnesses), key=lambda x: x[1], reverse=True)[:n]
-        return [elite[0] for elite in elites]
+
+        fitnesses = self.calculate_fitnesses(population)
+        return population[fitnesses.index(max(fitnesses))]
     
     def get_best_move(self, game, weights = None):
         valid_moves = game.get_valid_moves()

@@ -5,6 +5,8 @@ import os
 from othello_game import OthelloGame
 from ai_agent_ga import GeneticOthelloAI
 from ai_agent import MinimaxOthelloAI
+from ai_agent_SA import SimulatedAnnealingOthelloAI
+from ai_agent_v3 import MinimaxV3
 
 # Constants and colors
 WIDTH, HEIGHT = 480, 560
@@ -13,7 +15,6 @@ SQUARE_SIZE = (HEIGHT - 80) // BOARD_SIZE
 BLACK_COLOR = (0, 0, 0)
 WHITE_COLOR = (255, 255, 255)
 GREEN_COLOR = (0, 128, 0)
-
 
 class OthelloGUI:
     def __init__(self, player_mode="friend", agent_a = None, agent_b = None):
@@ -64,6 +65,10 @@ class OthelloGUI:
             return GeneticOthelloAI()
         elif agent_type == "Minimax":
             return MinimaxOthelloAI()
+        elif agent_type == "MinimaxV3":
+            return MinimaxV3()
+        elif agent_type == "Simulated Annealing":
+            return SimulatedAnnealingOthelloAI()
         else:
             return None  # This means it's a human player
 

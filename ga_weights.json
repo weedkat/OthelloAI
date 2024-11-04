@@ -1,7 +1,9 @@
 {
-  "coin_parity": -2.911163426060188,
-  "mobility": -0.40620412673829387,
-  "corner_occupancy": 0.08392705933495903,
-  "stability": 3.5758067650896086,
-  "edge_occupancy": 2.638779107121257
+  "simulated_annealing": {
+    "coin_parity": -1.8187159769239976,
+    "mobility": 3.4162709124009796,
+    "corner_occupancy": 5.1201272287771005,
+    "stability": -1.1910219125831865,
+    "edge_occupancy": 2.0434638214168976
+  }
 }

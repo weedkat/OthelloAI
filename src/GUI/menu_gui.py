@@ -11,7 +11,6 @@ GREEN_COLOR = (0, 128, 0)
 SUBMENU_SPACING = 75  # Increase the vertical spacing between submenu buttons
 BACKGROUND_IMAGE_PATH = "./utils/pictures/othello_blurred.jpg"
 
-
 class Menu:
     def __init__(self):
         """
@@ -33,7 +32,7 @@ class Menu:
             "Ai Agents\n(Agent vs Agent)",
             "Return to Main Menu",  # Add "Return to Main Menu" option
         ]
-        self.agents = ["Genetic Algorithm", "Minimax"]
+        self.agents = ["Genetic Algorithm", "Minimax", "MinimaxV3", "Simulated Annealing"]
         self.submenu_mode = 0
         self.agent_a = None
         self.return_button = None
