@@ -4,14 +4,22 @@ from othello_game import OthelloGame
 class MinimaxV3:
     def __init__(self):
         self.time_limit = 5
+        self.stability_cache = {}  # Cache untuk menyimpan nilai stability papan
 
     def get_best_move(self, game):
-        valid_moves = game.get_valid_moves()
-        best_move = None
+        # Menghapus cache sebelum memulai pencarian baru
+        self.stability_cache.clear()
+
         self.start_time = time.time()
 
+        # Menentukan fase permainan
+        remaining_moves = sum(row.count(0) for row in game.board)
+        self.current_phase = "early" if remaining_moves > 40 else "mid" if remaining_moves > 15 else "late"
+
+        valid_moves = game.get_valid_moves()
+
         # Iterative Deepening Search
-        for max_depth in range(2, max(self.get_depth(len(valid_moves)), 2) + 1):
+        for max_depth in range(2, self.get_depth(len(valid_moves)) + 1):
             # Menghitung sisa waktu untuk memeriksa batas waktu
             if time.time() - self.start_time >= self.time_limit:
                 break
@@ -98,38 +106,99 @@ class MinimaxV3:
                 alpha = score
         return alpha
 
-
     def get_aggressive_moves(self, game):
         aggressive_moves = []
         valid_moves = game.get_valid_moves()
-        edge_positions = [(i, j) for i in [0, 7] for j in range(1, 7)] + [(i, j) for i in range(1, 7) for j in [0, 7]]
+        edge_positions = [(i, j) for i in [0, 7] for j in range(1, 7)]
+        central_positions = [(3, 3), (3, 4), (4, 3), (4, 4)]
+        opponent = -game.current_player
 
         for move in valid_moves:
-            new_game = self.create_game_copy(game, move)
-            opponent_disks_flipped = self.calculate_flipped_disks(new_game)
-            if opponent_disks_flipped >= 3 or move in edge_positions:
-                aggressive_moves.append(move)
+            flipped_disks = self.count_flipped_disks(game, move, opponent)
+            if flipped_disks >= 3 or move in edge_positions or move in central_positions:
+                aggressive_moves.append((move, flipped_disks))
 
-        return aggressive_moves if aggressive_moves else valid_moves
+        # Tambahkan pengurutan berdasarkan fase permainan
+        if self.current_phase == "early":
+            aggressive_moves.sort(key=lambda x: (x[1], x[0] in central_positions), reverse=True)
+        elif self.current_phase == "mid":
+            aggressive_moves.sort(key=lambda x: (x[1], x[0] in edge_positions), reverse=True)
+        else:
+            aggressive_moves.sort(key=lambda x: (x[1], x[0] in edge_positions or x[0] in central_positions),
+                                  reverse=True)
 
-    def calculate_flipped_disks(self, game):
-        opponent = -game.current_player
+        return [move for move, _ in aggressive_moves] if aggressive_moves else valid_moves
+
+    def count_flipped_disks(self, game, move, opponent):
         flipped_disks = 0
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
 
-        for row in game.board:
-            flipped_disks += row.count(opponent)
+        for dx, dy in directions:
+            x, y = move[0] + dx, move[1] + dy
+            disks_to_flip = 0
+
+            while 0 <= x < 8 and 0 <= y < 8 and game.board[x][y] == opponent:
+                disks_to_flip += 1
+                x += dx
+                y += dy
+
+            if 0 <= x < 8 and 0 <= y < 8 and game.board[x][y] == game.current_player:
+                flipped_disks += disks_to_flip
 
         return flipped_disks
 
     def move_ordering(self, moves):
+        # Posisi-posisi penting pada papan
         corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
+        x_squares = [(1, 1), (1, 6), (6, 1), (6, 6)]
         edge_moves = [(i, j) for i in [0, 7] for j in range(1, 7)] + [(i, j) for i in range(1, 7) for j in [0, 7]]
-        ordered = sorted(moves, key=lambda move: self.evaluate_quick_move(move, corners, edge_moves), reverse=True)
-        return ordered
+        central_positions = [(3, 3), (3, 4), (4, 3), (4, 4)]
+
+        def evaluate_move(move):
+            # Fase Awal (banyak langkah tersisa)
+            if self.current_phase == "early":
+                if move in corners:
+                    return 5  # Prioritaskan sudut di awal
+                elif move in central_positions:
+                    return 3  # Area tengah penting untuk kontrol awal
+                else:
+                    return 1  # Langkah lainnya diberi prioritas rendah
+
+            # Fase Tengah (jumlah langkah sedang)
+            elif self.current_phase == "mid":
+                if move in corners:
+                    return 6  # Sudut tetap prioritas utama
+                elif move in edge_moves:
+                    return 4  # Prioritaskan langkah di tepi untuk mengontrol papan
+                elif move in x_squares:
+                    return -2  # Hindari X-squares di tengah permainan
+                elif move in central_positions:
+                    return 3  # Kontrol tengah masih penting
+                else:
+                    return 2  # Langkah lainnya
+
+            # Fase Akhir (sedikit langkah tersisa)
+            else:
+                if move in corners:
+                    return 7  # Sudut tetap prioritas tinggi
+                elif move in edge_moves:
+                    return 5  # Langkah tepi diutamakan untuk stabilitas
+                elif move in x_squares:
+                    return -3  # Hindari X-squares secara ekstrim
+                elif move in central_positions:
+                    return 4  # Kontrol pusat memberikan keuntungan di akhir
+                else:
+                    return 2  # Langkah lainnya
+
+        # Urutkan langkah berdasarkan evaluasi
+        ordered_moves = sorted(moves, key=evaluate_move, reverse=True)
+        return ordered_moves
 
     def evaluate_quick_move(self, move, corners, edge_moves):
         if move in corners:
-            return 4
+            return 5  # Sudut masih prioritas tinggi
+        elif move in central_positions:
+            return 4  # Memberikan prioritas tinggi untuk pusat
         elif move in edge_moves:
             return 3
         else:
@@ -143,15 +212,6 @@ class MinimaxV3:
         return new_game
 
     def evaluate_game_state(self, game):
-        # Pembagian fase berdasarkan remaining moves untuk menentukan weight
-        remaining_moves = sum(row.count(0) for row in game.board)
-        if remaining_moves > 40:
-            weight = (0.5, 3.0, 3.0, 1.0, 2.5)
-        elif 15 < remaining_moves <= 40:
-            weight = (1.0, 2.5, 4.0, 3.0, 3.0)
-        else:
-            weight = (2.5, 1.5, 6.0, 0.5, 2.5)
-
         # Coin parity (difference in disk count)
         player_disk_count = sum(row.count(game.current_player) for row in game.board)
         opponent_disk_count = sum(row.count(-game.current_player) for row in game.board)
@@ -165,17 +225,58 @@ class MinimaxV3:
         mobility = player_valid_moves - opponent_valid_moves
 
         # Corner occupancy (number of player disks in the corners)
-        corner_occupancy = sum(
-            game.board[i][j] for i, j in [(0, 0), (0, 7), (7, 0), (7, 7)]
+        player_corner_occupancy = sum(
+            1 for i, j in [(0, 0), (0, 7), (7, 0), (7, 7)] if game.board[i][j] == game.current_player
+        )
+        opponent_corner_occupancy = sum(
+            1 for i, j in [(0, 0), (0, 7), (7, 0), (7, 7)] if game.board[i][j] == -game.current_player
         )
 
         # Stability (number of stable disks)
-        stability = self.calculate_stability(game)
+        player_stability = self.calculate_stability(game, game.current_player)
+        opponent_stability = self.calculate_stability(game, -game.current_player)
 
         # Edge occupancy (number of player disks on the edges)
-        edge_occupancy = sum(game.board[i][j] for i in [0, 7] for j in range(1, 7)) + sum(
-           game.board[i][j] for i in range(1, 7) for j in [0, 7]
+        player_edge_occupancy = sum(
+            1 for i in [0, 7] for j in range(1, 7) if game.board[i][j] == game.current_player
+        ) + sum(
+            1 for i in range(1, 7) for j in [0, 7] if game.board[i][j] == game.current_player
         )
+        opponent_edge_occupancy = sum(
+            1 for i in [0, 7] for j in range(1, 7) if game.board[i][j] == -game.current_player
+        ) + sum(
+            1 for i in range(1, 7) for j in [0, 7] if game.board[i][j] == -game.current_player
+        )
+
+        # Central control (bonus for controlling central squares)
+        central_positions = [(3, 3), (3, 4), (4, 3), (4, 4)]
+        player_central_control = sum(
+            1 for i, j in central_positions if game.board[i][j] == game.current_player
+        )
+        opponent_central_control = sum(
+            1 for i, j in central_positions if game.board[i][j] == -game.current_player
+        )
+
+        # Pembagian fase berdasarkan remaining moves untuk menentukan weight
+        remaining_moves = sum(row.count(0) for row in game.board)
+        if self.current_phase == "early":
+            weight = (0.5, 3.5, 2.0, 0.5, 0.8, 2.5)
+            corner_occupancy = player_corner_occupancy
+            stability = player_stability
+            edge_occupancy = player_edge_occupancy
+            central_control = player_central_control - opponent_central_control
+        elif self.current_phase == "mid":
+            weight = (1.0, 2.8, 4.0, 3.2, 2.8, 1.8)
+            corner_occupancy = player_corner_occupancy - opponent_corner_occupancy
+            stability = player_stability - opponent_stability
+            edge_occupancy = player_edge_occupancy - opponent_edge_occupancy
+            central_control = player_central_control - opponent_central_control
+        else:
+            weight = (2.0, 1.2, 6.0, 5.0, 1.5, 1.0)
+            corner_occupancy = player_corner_occupancy - opponent_corner_occupancy
+            stability = player_stability - opponent_stability
+            edge_occupancy = player_edge_occupancy - opponent_edge_occupancy
+            central_control = player_central_control
 
         # Combine the factors with the corresponding weights to get the final evaluation value
         evaluation = (
@@ -184,12 +285,17 @@ class MinimaxV3:
             + corner_occupancy * weight[2]
             + stability * weight[3]
             + edge_occupancy * weight[4]
+            + central_control * weight[5]
         )
 
         return evaluation
 
 
-    def calculate_stability(self, game):
+    def calculate_stability(self, game, current_player):
+        board_tuple = (tuple(map(tuple, game.board)), current_player)  # Tambahkan `current_player` ke dalam tuple agar cache menyimpan hasil berdasarkan pemain
+        if board_tuple in self.stability_cache:
+            return self.stability_cache[board_tuple]
+
         def neighbors(row, col):
             return [
                 (row + dr, col + dc)
@@ -209,13 +315,14 @@ class MinimaxV3:
 
         def is_stable_disk(row, col):
             return (
-                all(game.board[r][c] == game.current_player for r, c in neighbors(row, col))
+                all(game.board[r][c] == current_player for r, c in neighbors(row, col))
                 or (row, col) in edges + corners
             )
 
         for region in regions:
             for row, col in region:
-                if game.board[row][col] == game.current_player and is_stable_disk(row, col):
+                if game.board[row][col] == current_player and is_stable_disk(row, col):
                     stable_count += 1
 
+        self.stability_cache[board_tuple] = stable_count  # Store result in cache
         return stable_count

@@ -32,7 +32,7 @@ class Menu:
             "Ai Agents\n(Agent vs Agent)",
             "Return to Main Menu",  # Add "Return to Main Menu" option
         ]
-        self.agents = ["Genetic Algorithm", "Minimax", "MinimaxV3", "Simulated Annealing"]
+        self.agents = ["Genetic Algorithm", "Minimax", "MinimaxV1", "MinimaxV2", "MinimaxV3", "Simulated Annealing"]
         self.submenu_mode = 0
         self.agent_a = None
         self.return_button = None

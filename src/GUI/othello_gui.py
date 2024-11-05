@@ -6,6 +6,8 @@ from othello_game import OthelloGame
 from ai_agent_ga import GeneticOthelloAI
 from ai_agent import MinimaxOthelloAI
 from ai_agent_SA import SimulatedAnnealingOthelloAI
+from ai_agent_v1 import MinimaxV1
+from ai_agent_v2 import MinimaxV2
 from ai_agent_v3 import MinimaxV3
 
 # Constants and colors
@@ -65,6 +67,10 @@ class OthelloGUI:
             return GeneticOthelloAI()
         elif agent_type == "Minimax":
             return MinimaxOthelloAI()
+        elif agent_type == "MinimaxV1":
+            return MinimaxV1()
+        elif agent_type == "MinimaxV2":
+            return MinimaxV2()
         elif agent_type == "MinimaxV3":
             return MinimaxV3()
         elif agent_type == "Simulated Annealing":

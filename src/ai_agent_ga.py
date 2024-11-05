@@ -8,13 +8,23 @@ from ai_agent import MinimaxOthelloAI
 from ai_agent_SA import SimulatedAnnealingOthelloAI
 
 # Genetic Algorithm Parameters
+HEURISTIC_MATRIX = [ #https://github.com/mdulin2/Othello/blob/master/Heuristic.py
+    [1.0, 0.0, 0.7895, 0.7368, 0.7368, 0.7895, 0.0, 1.0],
+    [0.0, 0.0, 0.3684, 0.3684, 0.3684, 0.3684, 0.0, 0.0],
+    [0.6842, 0.3158, 0.7368, 0.4737, 0.4737, 0.7368, 0.3158, 0.6842],
+    [0.6316, 0.3158, 0.3158, 0.3158, 0.3158, 0.3158, 0.3158, 0.6316],
+    [0.6316, 0.3158, 0.3158, 0.3158, 0.3158, 0.3158, 0.3158, 0.6316],
+    [0.6842, 0.3158, 0.7368, 0.4737, 0.4737, 0.7368, 0.3158, 0.6842],
+    [0.0, 0.0, 0.3684, 0.3684, 0.3684, 0.3684, 0.0, 0.0],
+    [1.0, 0.0, 0.6842, 0.6316, 0.6316, 0.6842, 0.0, 1.0]
+]
 N_POPULATION = 16
 MUTATION_RATE = 0.1
 MUTATION_SWING = 1
 N_GENERATIONS = 6
-ELITE_PERCENTAGE = 0.2
-MAX_WEIGHT = 8
-MIN_WEIGHT = -8
+ELITE_PERCENTAGE = 0.1
+MAX_WEIGHT = 10
+MIN_WEIGHT = -10
 
 def save_weights_to_json(weights, filename = 'ga_weights.json'):
     with open(filename, 'w') as file:
@@ -28,9 +38,10 @@ def load_weights_from_json(filename = 'ga_weights.json'):
     return weights
 
 class GeneticOthelloAI:
-    def __init__(self, opponent = 'simulated_annealing', train = False):
+    def __init__(self, opponent = 'minimaxV3', train = False):
         self.opponent = opponent
         self.train = train
+        # Load weight sesuai dengan lawan, jika belum ada, maka lakukan training
         weights = load_weights_from_json()
         if not weights.get(opponent) or train:       
             weights[opponent] =  self.genetic_algorithm()
@@ -41,33 +52,37 @@ class GeneticOthelloAI:
     
     def create_individual(self):
         # Individu direpresentasikan dengan dictionary evaluasi weight
-        features = ["coin_parity", "mobility", "corner_occupancy", "stability", "edge_occupancy"]
+        features = ['coin_parity', 'mobility', 'corner_occupancy', 'stability', 'heuristic_pos', 'edge_occupancy']
         return {feature : random.uniform(MAX_WEIGHT, MIN_WEIGHT) for feature in features}
     
     def evaluate_game_state(self, game, weights):
-        # Coin parity (difference in disk count)
-        player_disk_count = sum(row.count(game.current_player) for row in game.board)
-        opponent_disk_count = sum(row.count(-game.current_player) for row in game.board)
+        turn = game.current_player
+        # Perbedaan jumlah keping
+        player_disk_count = sum(row.count(turn) for row in game.board)
+        opponent_disk_count = sum(row.count(-turn) for row in game.board)
         coin_parity = player_disk_count - opponent_disk_count
 
-        # Mobility (number of valid moves for the current player)
+        # Keleluasaan jumlah pergerakkan yang diperbolahkan
         player_valid_moves = len(game.get_valid_moves())
         opponent_valid_moves = len(
-            OthelloGame(player_mode=-game.current_player).get_valid_moves()
+            OthelloGame(player_mode=-turn).get_valid_moves()
         )
         mobility = player_valid_moves - opponent_valid_moves
 
-        # Corner occupancy (number of player disks in the corners)
+        # Apakah corner sebagai posisi strategis sudah terisi
         corner_occupancy = sum(
-            game.board[i][j] for i, j in [(0, 0), (0, 7), (7, 0), (7, 7)]
+            game.board[i][j] * turn for i, j in [(0, 0), (0, 7), (7, 0), (7, 7)]
         )
 
         # Stability (number of stable disks)
         stability = self.calculate_stability(game)
 
-        # Edge occupancy (number of player disks on the edges)
-        edge_occupancy = sum(game.board[i][j] for i in [0, 7] for j in range(1, 7)) + sum(
-            game.board[i][j] for i in range(1, 7) for j in [0, 7]
+        # Heuristic berdasarkan value posisi
+        heuristic_pos = self.calculate_heuristic_pos(game)
+
+        # Jumlah keping yang di pinggir
+        edge_occupancy = sum(game.board[i][j] * turn for i in [0, 7] for j in range(1, 7)) + sum(
+            game.board[i][j] * turn for i in range(1, 7) for j in [0, 7]
         )
 
         evaluation = (
@@ -75,8 +90,19 @@ class GeneticOthelloAI:
             + mobility * weights['mobility']
             + corner_occupancy * weights['corner_occupancy']
             + stability * weights['stability']
+            + heuristic_pos * weights['heuristic_pos']
             + edge_occupancy * weights['edge_occupancy']
         )
+        return evaluation
+    
+    def calculate_heuristic_pos(self, game):
+        evaluation = 0
+        for row in range(8):
+            for col in range(8):
+                if game.board[row][col] == game.current_player:
+                    evaluation += HEURISTIC_MATRIX[row][col]
+                else:
+                    evaluation -= HEURISTIC_MATRIX[row][col]
         return evaluation
     
     def calculate_stability(self, game):
@@ -113,22 +139,21 @@ class GeneticOthelloAI:
         fitness = 0
         game = OthelloGame(player_mode = 'ai')
         move_count = 0
-        # Simulate games with opponent
-        while not game.is_game_over():
-            if game.current_player == 1:
-                move = self.get_best_move(game, individual)
-            else:
-                move = self.get_opponent_move(game, self.opponent)
-            if move:
-                move_count += 1
-                game.make_move(*move)
-        winner = game.get_winner()
-        # score difference
-        score_diff = sum(row.count(1) for row in game.board)
-        score_diff -= sum(row.count(-1) for row in game.board)
-        fitness = (4 if winner == 1 else (0 if winner == 0 else -1)) \
-                    + 0.05 * score_diff \
-                    - 0.005 * move_count
+        for turn in [-1, 1]:
+            # Simulate games with opponent
+            while not game.is_game_over():
+                if game.current_player == turn:
+                    move = self.get_best_move(game, individual)
+                else:
+                    move = self.get_opponent_move(game, self.opponent)
+                if move:
+                    move_count += 1
+                    game.make_move(*move)
+            # score difference
+            score_diff = sum(row.count(turn) for row in game.board)
+            score_diff -= sum(row.count(-turn) for row in game.board)
+            winner = game.get_winner()
+            fitness += (3 if winner == 1 else (0 if winner == 0 else -1)) + 0.05 * score_diff - 0.005 * move_count
         return fitness
     
     def calculate_fitnesses(self, population):
@@ -143,27 +168,19 @@ class GeneticOthelloAI:
             return self.random_move(game)
         elif opponent == 'minimax':
             return self.minimax_move(game)
+        elif opponent == 'minimaxV3':
+            return self.minimaxV3_move(game)
         elif opponent == 'simulated_annealing':
             return self.simulated_annealing_move(game)
         else:
             raise Exception('Opponent ia not listed')
         
     def heuristic_move(self, game):
-        heuristic_matrix = [ #https://github.com/mdulin2/Othello/blob/master/Heuristic.py
-            [95, 10, 80, 75, 75, 80, 10, 95],
-            [10, 10, 45, 45, 45, 45, 10, 10],
-            [65, 40, 70, 50, 50, 70, 40, 65],
-            [60, 40, 40, 40, 40, 40, 40, 60],
-            [60, 40, 40, 40, 40, 40, 40, 60],
-            [65, 40, 70, 50, 50, 70, 40, 65],
-            [10, 10, 45, 45, 45, 45, 10, 10],
-            [95, 10, 65, 60, 60, 65, 10, 95]
-        ]
         max_value = float('-inf')
         best_move = None
         for move in game.get_valid_moves():
             row, col = move
-            heuristic_value = heuristic_matrix[row][col]
+            heuristic_value = HEURISTIC_MATRIX[row][col]
             if heuristic_value > max_value:
                 best_move = move
                 max_value = heuristic_value
@@ -172,9 +189,17 @@ class GeneticOthelloAI:
     def random_move(self, game):
         return random.choice(game.get_valid_moves())
     
-    def minimax_move(self, game, max_depth = 2):
+    def minimax_move(self, game, max_depth = 8):
         minimax_agent = MinimaxOthelloAI(max_depth)
-        return minimax_agent.get_best_move(game)
+        best_move = minimax_agent.get_best_move(game)
+        print(best_move)
+        return best_move
+    
+    def minimaxV3_move(self, game):
+        minimax_agent = MinimaxOthelloAI()
+        best_move = minimax_agent.get_best_move(game)
+        print(best_move)
+        return best_move
     
     def simulated_annealing_move(self, game):
         sa_agent = SimulatedAnnealingOthelloAI()

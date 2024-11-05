@@ -4,9 +4,9 @@ import numpy as np
 from othello_game import OthelloGame
 
 #* Initial Parameter for Simulated Annealing
-INITIAL_TEMPERATURE = 100 
+INITIAL_TEMPERATURE = 100
 COOLING_RATE = 0.95
-MAX_ITERATIONS = 100  #* Max number iteration
+MAX_ITERATIONS = 150  #* Max number iteration
 MIN_TEMPERATURE = 0.1   #* Temperature Termination
 MAX_MOVES = 150  
 MAX_TIME = 5 #* 5 Second
