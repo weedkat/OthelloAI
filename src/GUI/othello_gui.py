@@ -28,6 +28,7 @@ class OthelloGUI:
         """
         self.win = self.initialize_pygame()
         self.game = OthelloGame(player_mode=player_mode)
+        self.player_mode = player_mode
         self.message_font = pygame.font.SysFont(None, 24)
         self.message = ""
         self.invalid_move_message = ""
@@ -36,8 +37,6 @@ class OthelloGUI:
         self.invalid_play_sound = pygame.mixer.Sound("./utils/sounds/invalid_play.mp3")
         self.agent_type_a = agent_a
         self.agent_type_b = agent_b
-        self.log_file = time.strftime("log-%Y%m%d-%H:%M:%S.log", time.localtime())
-        self.make_log_file()
         self.set_agents()
         
     def initialize_pygame(self):
@@ -190,10 +189,10 @@ class OthelloGUI:
             self.game.make_move(*ai_move)
             return ai_move
 
-    def make_log_file(self):
+    def make_log_file(self, log_file):
         if not os.path.exists('./game-log'):
             os.mkdir('./game-log')
-        with open(f'./game-log/{self.log_file}', 'w') as file:
+        with open(f'./game-log/{log_file}', 'w') as file:
             player_1 = 'Human'
             player_2 = self.agent_type_b or self.agent_type_a
             if self.game.player_mode == 'agent':
@@ -204,63 +203,72 @@ class OthelloGUI:
         """
         Run the main game loop until the game is over and display the result.
         """
-        execution_time_a = []
-        execution_time_b = []
-        while not self.game.is_game_over():
-            player = 'Human'
-            start_time = time.time()
-            move = None
-            turn = 'Black' if self.game.current_player == 1 else 'White'
-            if self.game.player_mode == "friend":
-                move = self.handle_input()
+        for _ in range(10):
+            log_file = time.strftime("log-%Y%m%d-%H:%M:%S.log", time.localtime())
+            self.make_log_file(log_file)
+            execution_time_a = []
+            execution_time_b = []
+            while not self.game.is_game_over():
+                player = 'Human'
+                start_time = time.time()
+                move = None
+                turn = 'Black' if self.game.current_player == 1 else 'White'
+                if self.game.player_mode == "friend":
+                    move = self.handle_input()
 
-            # If it's the AI player's turn
-            if self.game.player_mode == "ai" and self.game.current_player == -1:
-                move = self.agent_move(self.agent_a)
-                player = self.agent_type_a
-            
-            elif self.game.player_mode == "ai" and self.game.current_player == 1:
-                self.handle_input()
-            
-            # If it's the AI player's turn
-            elif self.game.player_mode == "agent" and self.game.current_player == 1:
-                move = self.agent_move(self.agent_a)
-                player = self.agent_type_a
+                # If it's the AI player's turn
+                if self.game.player_mode == "ai" and self.game.current_player == -1:
+                    move = self.agent_move(self.agent_a)
+                    player = self.agent_type_a
+                
+                elif self.game.player_mode == "ai" and self.game.current_player == 1:
+                    self.handle_input()
+                
+                # If it's the AI player's turn
+                elif self.game.player_mode == "agent" and self.game.current_player == 1:
+                    move = self.agent_move(self.agent_a)
+                    player = self.agent_type_a
 
-            elif self.game.player_mode == "agent" and self.game.current_player == -1:
-                move = self.agent_move(self.agent_b)
-                player = self.agent_type_b
+                elif self.game.player_mode == "agent" and self.game.current_player == -1:
+                    move = self.agent_move(self.agent_b)
+                    player = self.agent_type_b
 
-            with open(f'./game-log/{self.log_file}', 'a') as file:
-                time_taken = time.time() - start_time
-                if self.game.current_player == 1:
-                    execution_time_a.append(time_taken)
-                else:
-                    execution_time_b.append(time_taken)
-                file.write(f"{turn} ({player}) move {move} took {time_taken:.2f}s\n")
+                with open(f'./game-log/{log_file}', 'a') as file:
+                    time_taken = time.time() - start_time
+                    if self.game.current_player == 1:
+                        execution_time_a.append(time_taken)
+                    else:
+                        execution_time_b.append(time_taken)
+                    file.write(f"{turn} ({player}) move {move} took {time_taken:.2f}s\n")
 
-            self.message = ""  # Clear any previous messages
+                self.message = ""  # Clear any previous messages
+                self.draw_board()
+
+            winner = self.game.get_winner()
+            if winner == 1:
+                message = "Black wins!"
+            elif winner == -1:
+                message = "White wins!"
+            else:
+                message = "It's a tie!"
+
+            with open(f'./game-log/{log_file}', 'a') as file:
+                score_diff = sum(row.count(1) for row in self.game.board) - sum(row.count(-1) for row in self.game.board)
+                file.write(f"{message} with Score Difference of {score_diff}\n")
+                file.write(f"Average White Execution Time : {avg(execution_time_a, 2)}s\n")
+                file.write(f"Average Black Execution Time : {avg(execution_time_b, 2)}s\n")
+                file.write("Board position : \n")
+                for row in self.game.board:
+                    file.write(" ".join(map(str, row)) + "\n")
+
+            self.message = message
             self.draw_board()
+            self.end_game_sound.play()  # Play end game sound effect
+            pygame.time.delay(1000)  # Display the result for 2 seconds before returning
 
-        winner = self.game.get_winner()
-        if winner == 1:
-            message = "Black wins!"
-        elif winner == -1:
-            message = "White wins!"
-        else:
-            message = "It's a tie!"
-
-        with open(f'./game-log/{self.log_file}', 'a') as file:
-            score_diff = sum(row.count(1) for row in self.game.board) - sum(row.count(-1) for row in self.game.board)
-            file.write(f"{message} with Score Difference of {score_diff}\n")
-            file.write(f"Average White Execution Time : {avg(execution_time_a, 2)}s\n")
-            file.write(f"Average Black Execution Time : {avg(execution_time_b, 2)}s\n")
-
-
-        self.message = message
-        self.draw_board()
-        self.end_game_sound.play()  # Play end game sound effect
-        pygame.time.delay(5000)  # Display the result for 2 seconds before returning
+            self.agent_type_a, self.agent_type_b = self.agent_type_b, self.agent_type_a
+            self.game = OthelloGame(player_mode=self.player_mode)
+            self.set_agents()
 
         # Call the return_to_menu_callback if provided
         if return_to_menu_callback:

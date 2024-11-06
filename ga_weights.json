@@ -1,18 +1,10 @@
 {
-  "simulated_annealing": {
-    "coin_parity": 2.010201918466957,
-    "mobility": -3.72751742980475,
-    "corner_occupancy": -3.982503327682717,
-    "stability": -5.036716742938589,
-    "heuristic_pos": -3.8901586195926288,
-    "edge_occupancy": -0.6467512501141849
-  },
-  "minimaxV3": {
-    "coin_parity": 3.3584530393209677,
-    "mobility": 2.31840943995324,
-    "corner_occupancy": -4.284080164395022,
-    "stability": 2.4134653345281185,
-    "heuristic_pos": -1.1691939960890279,
-    "edge_occupancy": -0.8512790445643883
+  "minimaxV1": {
+    "coin_parity": 3.0913333102963048,
+    "mobility": 4.953569442718546,
+    "corner_occupancy": 6.580540369441814,
+    "stability": -1.7232673842224955,
+    "heuristic_pos": -0.7957082679098164,
+    "edge_occupancy": -4.067543418617044
   }
 }

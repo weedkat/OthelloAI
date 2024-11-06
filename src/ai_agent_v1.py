@@ -8,14 +8,16 @@ class MinimaxV1:
     def get_best_move(self, game):
         self.start_time = time.time()
 
-        # Membagi max depth ke dalam 3 fase berdasarkan valid moves
+        # Menentukan max depth berdasarkan valid moves
         self.player_valid_moves = len(game.get_valid_moves())
-        if self.player_valid_moves > 40:
-            max_depth = 4  # Early game
-        elif self.player_valid_moves > 20:
-            max_depth = 6  # Mid game
+        if self.player_valid_moves > 20:
+            max_depth = 3
+        elif self.player_valid_moves > 10:
+            max_depth = 4
+        elif self.player_valid_moves > 5:
+            max_depth = 5
         else:
-            max_depth = 8  # Late game
+            max_depth = 6
 
         _, best_move = self.alphabeta(game, max_depth)
         return best_move

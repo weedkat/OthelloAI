@@ -27,11 +27,14 @@ class MinimaxV3:
         return best_move
 
     def get_depth(self, valid_moves_count):
-        if valid_moves_count <= 5:
+        if valid_moves_count > 20:
             return 4
-        elif valid_moves_count <= 10:
+        elif valid_moves_count > 10:
             return 5
-        else: return 4
+        elif valid_moves_count > 5:
+            return 6
+        else:
+            return 7
 
     def alphabeta(
         self, game, max_depth, maximizing_player=True, alpha=float("-inf"), beta=float("inf")
