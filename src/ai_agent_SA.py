@@ -12,10 +12,9 @@ MAX_MOVES = 150
 MAX_TIME = 5 #* 5 Second
 
 class SimulatedAnnealingOthelloAI:
-    def __init__(self, max_time=5, train=True):
+    def __init__(self, max_time=MAX_TIME):
         #print("Initializing SimulatedAnnealingOthelloAI...")
         self.max_time = max_time
-        self.train = train
 
     def create_individual(self):
         """ Create random initialization for individual """
