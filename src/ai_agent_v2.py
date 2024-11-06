@@ -4,7 +4,8 @@ from othello_game import OthelloGame
 class MinimaxV2:
     def __init__(self):
         self.time_limit = 5
-        self.stability_cache = {}  # Cache untuk menyimpan nilai stability papan
+        # Cache untuk menyimpan nilai stability
+        self.stability_cache = {}
 
     def get_best_move(self, game):
         # Menghapus cache sebelum memulai pencarian baru
@@ -162,7 +163,8 @@ class MinimaxV2:
 
 
     def calculate_stability(self, game, current_player):
-        board_tuple = (tuple(map(tuple, game.board)), current_player)  # Tambahkan `current_player` ke dalam tuple agar cache menyimpan hasil berdasarkan pemain
+        # Tambahkan current_player ke dalam tuple agar cache menyimpan hasil berdasarkan player
+        board_tuple = (tuple(map(tuple, game.board)), current_player)
         if board_tuple in self.stability_cache:
             return self.stability_cache[board_tuple]
 
@@ -194,5 +196,6 @@ class MinimaxV2:
                 if game.board[row][col] == current_player and is_stable_disk(row, col):
                     stable_count += 1
 
-        self.stability_cache[board_tuple] = stable_count  # Store result in cache
+        # Menyimpan hasil dalam cache
+        self.stability_cache[board_tuple] = stable_count
         return stable_count

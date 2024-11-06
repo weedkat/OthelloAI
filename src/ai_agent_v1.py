@@ -22,7 +22,6 @@ class MinimaxV1:
         _, best_move = self.alphabeta(game, max_depth)
         return best_move
 
-
     def alphabeta(
         self, game, max_depth, maximizing_player=True, alpha=float("-inf"), beta=float("inf")
     ):

@@ -63,7 +63,7 @@ class GeneticOthelloAI:
             game.board[i][j] * turn for i in range(1, 7) for j in [0, 7]
         )
 
-        evaluation = (
+        return (
             coin_parity * weights['coin_parity']
             + mobility * weights['mobility']
             + corner_occupancy * weights['corner_occupancy']
@@ -71,7 +71,6 @@ class GeneticOthelloAI:
             + heuristic_pos * weights['heuristic_pos']
             + edge_occupancy * weights['edge_occupancy']
         )
-        return evaluation
     
     def calculate_heuristic_pos(self, game):
         evaluation = 0
@@ -184,7 +183,7 @@ class GeneticOthelloAI:
             new_population = [elite[0] for elite in elites]
             if time.time() - start_time > MAX_TIME:
                 print(f"Time limit exceeded")
-                return elites[0][0]
+                return new_population[0]
             while len(new_population) < n_population:
                 parent_a = self.roulette_wheel(population, fitnesses)
                 parent_b = self.roulette_wheel(population, fitnesses)
@@ -205,6 +204,7 @@ class GeneticOthelloAI:
         return {feature : weights[i] for i, feature in enumerate(features)}
 
     def get_best_move(self, game, weights = None):
+        # weights dari input atau mencari lewat genetic algorithm atau weight heuristik jika tidka ada yg terinisialisasi
         if weights is None:
             remaining_moves = sum(row.count(0) for row in game.board)
             if remaining_moves <= 20:

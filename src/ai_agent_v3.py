@@ -4,7 +4,8 @@ from othello_game import OthelloGame
 class MinimaxV3:
     def __init__(self):
         self.time_limit = 5
-        self.stability_cache = {}  # Cache untuk menyimpan nilai stability papan
+        # Cache untuk menyimpan nilai stability
+        self.stability_cache = {}
 
     def get_best_move(self, game):
         # Menghapus cache sebelum memulai pencarian baru
@@ -44,9 +45,7 @@ class MinimaxV3:
             return float("-inf") if maximizing_player else float("inf"), None
 
         if max_depth == 0:
-            ''' Quiescence Search untuk menangani masalah horizon effect 
-                (pencarian utama berhenti di kedalaman tertentu,
-                tetapi mungkin masih ada langkah yang signifikan).'''
+            # Quiescence search untuk mengatasi horizon effect
             return self.quiescence_search(game, alpha, beta), None
 
         elif game.is_game_over():
@@ -121,7 +120,7 @@ class MinimaxV3:
             if flipped_disks >= 3 or move in edge_positions or move in central_positions:
                 aggressive_moves.append((move, flipped_disks))
 
-        # Tambahkan pengurutan berdasarkan fase permainan
+        # Prioritas langkah agresif pada masing-masing fase permainan
         if self.current_phase == "early":
             aggressive_moves.sort(key=lambda x: (x[1], x[0] in central_positions), reverse=True)
         elif self.current_phase == "mid":
@@ -158,54 +157,41 @@ class MinimaxV3:
         central_positions = [(3, 3), (3, 4), (4, 3), (4, 4)]
 
         def evaluate_move(move):
-            # Fase Awal (banyak langkah tersisa)
             if self.current_phase == "early":
                 if move in corners:
-                    return 5  # Prioritaskan sudut di awal
+                    return 5
                 elif move in central_positions:
-                    return 3  # Area tengah penting untuk kontrol awal
+                    return 3
                 else:
-                    return 1  # Langkah lainnya diberi prioritas rendah
+                    return 1 # Langkah lainnya
 
-            # Fase Tengah (jumlah langkah sedang)
             elif self.current_phase == "mid":
                 if move in corners:
-                    return 6  # Sudut tetap prioritas utama
+                    return 6
                 elif move in edge_moves:
-                    return 4  # Prioritaskan langkah di tepi untuk mengontrol papan
+                    return 4
                 elif move in x_squares:
-                    return -2  # Hindari X-squares di tengah permainan
+                    return -2  # Hindari X-squares
                 elif move in central_positions:
-                    return 3  # Kontrol tengah masih penting
+                    return 3
                 else:
-                    return 2  # Langkah lainnya
+                    return 2 # Langkah lainnya
 
-            # Fase Akhir (sedikit langkah tersisa)
             else:
                 if move in corners:
-                    return 7  # Sudut tetap prioritas tinggi
+                    return 7
                 elif move in edge_moves:
-                    return 5  # Langkah tepi diutamakan untuk stabilitas
+                    return 5
                 elif move in x_squares:
-                    return -3  # Hindari X-squares secara ekstrim
+                    return -3  # Hindari X-squares
                 elif move in central_positions:
-                    return 4  # Kontrol pusat memberikan keuntungan di akhir
+                    return 4
                 else:
                     return 2  # Langkah lainnya
 
         # Urutkan langkah berdasarkan evaluasi
         ordered_moves = sorted(moves, key=evaluate_move, reverse=True)
         return ordered_moves
-
-    def evaluate_quick_move(self, move, corners, edge_moves):
-        if move in corners:
-            return 5  # Sudut masih prioritas tinggi
-        elif move in central_positions:
-            return 4  # Memberikan prioritas tinggi untuk pusat
-        elif move in edge_moves:
-            return 3
-        else:
-            return 2
 
     def create_game_copy(self, game, move):
         new_game = OthelloGame(player_mode=game.player_mode)
@@ -251,7 +237,7 @@ class MinimaxV3:
             1 for i in range(1, 7) for j in [0, 7] if game.board[i][j] == -game.current_player
         )
 
-        # Central control (bonus for controlling central squares)
+        # Central control
         central_positions = [(3, 3), (3, 4), (4, 3), (4, 4)]
         player_central_control = sum(
             1 for i, j in central_positions if game.board[i][j] == game.current_player
@@ -260,8 +246,6 @@ class MinimaxV3:
             1 for i, j in central_positions if game.board[i][j] == -game.current_player
         )
 
-        # Pembagian fase berdasarkan remaining moves untuk menentukan weight
-        remaining_moves = sum(row.count(0) for row in game.board)
         if self.current_phase == "early":
             weight = (0.5, 3.5, 2.0, 0.5, 0.8, 2.5)
             corner_occupancy = player_corner_occupancy
@@ -293,9 +277,9 @@ class MinimaxV3:
 
         return evaluation
 
-
     def calculate_stability(self, game, current_player):
-        board_tuple = (tuple(map(tuple, game.board)), current_player)  # Tambahkan `current_player` ke dalam tuple agar cache menyimpan hasil berdasarkan pemain
+        # Tambahkan current_player ke dalam tuple agar cache menyimpan hasil berdasarkan player
+        board_tuple = (tuple(map(tuple, game.board)), current_player)
         if board_tuple in self.stability_cache:
             return self.stability_cache[board_tuple]
 
@@ -327,5 +311,6 @@ class MinimaxV3:
                 if game.board[row][col] == current_player and is_stable_disk(row, col):
                     stable_count += 1
 
-        self.stability_cache[board_tuple] = stable_count  # Store result in cache
+        # Menyimpan hasil dalam cache
+        self.stability_cache[board_tuple] = stable_count
         return stable_count
